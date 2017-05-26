@@ -22,5 +22,5 @@ testStringDiffs =
         [ test "this should succeed" <|
             \() ->
                 diff "blah" "bla"
-                    |> Expect.equal "\"bla\x1B[31mh\x1B[39m\""
+                    |> Expect.equal "bla\x1B[31mh\x1B[39m"
         ]
