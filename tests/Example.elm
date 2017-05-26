@@ -19,8 +19,16 @@ red str =
 testStringDiffs : Test
 testStringDiffs =
     describe "basic expectations"
-        [ test "this should succeed" <|
+        [ test "a removed character should be red" <|
             \() ->
                 diff "blah" "bla"
                     |> Expect.equal "bla\x1B[31mh\x1B[39m"
+        , test "an added character should be green" <|
+            \() ->
+                diff "bla" "blah"
+                    |> Expect.equal "bla\x1B[32mh\x1B[39m"
+        , test "a removed and added character should be red then green" <|
+            \() ->
+                diff "blah" "blag"
+                    |> Expect.equal "bla\x1B[31mh\x1B[39m\x1B[32mg\x1B[39m"
         ]
