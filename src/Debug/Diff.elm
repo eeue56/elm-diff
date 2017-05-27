@@ -1,4 +1,4 @@
-module Debug.Diff exposing (diff)
+module Debug.Diff exposing (diff, displayDiff)
 
 import Json.Decode as Json
 import Json.Encode
@@ -17,6 +17,7 @@ type Diff
 type DiffingType
     = StringDiff String String
     | RecordDiff Json.Value Json.Value
+    | UnionDiff Json.Value Json.Value
     | NumberDiff Float Float
     | NoDiff
 
@@ -89,6 +90,38 @@ recordDiff depth first second =
             |> List.concat
 
 
+unionDiff : Json.Value -> Json.Value -> List Diff
+unionDiff first second =
+    let
+        firstCtor =
+            Json.decodeValue (Json.field "ctor" Json.string) first
+                |> Result.withDefault ""
+
+        secondCtor =
+            Json.decodeValue (Json.field "ctor" Json.string) second
+                |> Result.withDefault ""
+
+        firstDecoded =
+            Json.decodeValue (Json.keyValuePairs Json.value) first
+                |> Result.withDefault []
+                |> List.filter (Tuple.first >> (/=) "ctor")
+                |> List.map Tuple.second
+
+        secondDecoded =
+            Json.decodeValue (Json.keyValuePairs Json.value) second
+                |> Result.withDefault []
+                |> List.filter (Tuple.first >> (/=) "ctor")
+                |> List.map Tuple.second
+    in
+        if firstCtor == secondCtor then
+            if firstDecoded == secondDecoded then
+                [ Same <| toString first ]
+            else
+                Same firstCtor :: (List.map2 (internalDiff 0) firstDecoded secondDecoded |> List.concat)
+        else
+            [ Removed (toString first), Same "   ", Added (toString second) ]
+
+
 diffToString : Diff -> String
 diffToString diff =
     case diff of
@@ -129,6 +162,9 @@ internalDiff depth thing other =
         NumberDiff first second ->
             numberDiff first second
 
+        UnionDiff first second ->
+            unionDiff first second
+
         NoDiff ->
             []
 
@@ -141,4 +177,4 @@ diff first second =
 
 displayDiff : String -> String
 displayDiff str =
-    Debug.log "" str
+    Debug.log str ""
