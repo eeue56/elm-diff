@@ -1,16 +1,22 @@
 module Debug.Diff exposing (diff)
 
+import Json.Decode as Json
+import Json.Encode
 import Native.Diff
 
 
 type Diff
     = Added String
     | Removed String
+    | FieldChanged String Int
     | Same String
+    | OpenBracket
+    | CloseBracket
 
 
-type DiffingType
+type DiffingType a
     = StringDiff String String
+    | RecordDiff Json.Value Json.Value
 
 
 green : String -> String
@@ -41,9 +47,47 @@ stringDiff first second =
                 Removed (String.fromList [ x ]) :: Added (String.fromList [ y ]) :: stringDiff xs ys
 
 
+fieldDiff : Int -> ( String, Json.Value ) -> ( String, Json.Value ) -> List Diff
+fieldDiff depth ( firstName, firstValue ) ( secondName, secondValue ) =
+    let
+        firstAsString =
+            Json.Encode.object [ ( firstName, firstValue ) ]
+                |> Json.Encode.encode 4
+
+        secondAsString =
+            Json.Encode.object [ ( firstName, firstValue ) ]
+                |> Json.Encode.encode 4
+    in
+        if firstName == secondName && firstValue == secondValue then
+            [ Same firstAsString ]
+        else
+            FieldChanged firstName depth :: internalDiff (depth + 1) firstValue secondValue
+
+
+recordDiff : Int -> Json.Value -> Json.Value -> List Diff
+recordDiff depth first second =
+    let
+        firstDecoded =
+            Json.decodeValue (Json.keyValuePairs Json.value) first
+                |> Result.withDefault []
+
+        secondDecoded =
+            Json.decodeValue (Json.keyValuePairs Json.value) second
+                |> Result.withDefault []
+    in
+        List.map2 (fieldDiff depth) firstDecoded secondDecoded
+            |> List.concat
+
+
 diffToString : Diff -> String
 diffToString diff =
     case diff of
+        OpenBracket ->
+            "{ "
+
+        CloseBracket ->
+            " }"
+
         Added x ->
             green x
 
@@ -53,6 +97,9 @@ diffToString diff =
         Same x ->
             x
 
+        FieldChanged x depth ->
+            green x ++ " : \n" ++ (String.repeat (depth + 1) "\t")
+
 
 diffListToString : List Diff -> String
 diffListToString =
@@ -60,9 +107,22 @@ diffListToString =
         >> String.join ""
 
 
-diff : a -> a -> String
-diff thing other =
+internalDiff : Int -> a -> a -> List Diff
+internalDiff depth thing other =
     case Native.Diff.diff thing other of
         StringDiff first second ->
             stringDiff (String.toList first) (String.toList second)
-                |> diffListToString
+
+        RecordDiff first second ->
+            OpenBracket :: recordDiff depth first second ++ [ CloseBracket ]
+
+
+diff : a -> a -> String
+diff first second =
+    internalDiff 0 first second
+        |> diffListToString
+
+
+displayDiff : String -> String
+displayDiff str =
+    Debug.log "" str

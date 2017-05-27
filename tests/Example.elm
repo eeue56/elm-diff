@@ -32,3 +32,17 @@ testStringDiffs =
                 diff "blah" "blag"
                     |> Expect.equal "bla\x1B[31mh\x1B[39m\x1B[32mg\x1B[39m"
         ]
+
+
+testRecordDiffs : Test
+testRecordDiffs =
+    describe "record diffs"
+        [ test "an updated field should be green then red" <|
+            \() ->
+                diff { name = "blah" } { name = "bla" }
+                    |> Expect.equal ("{ " ++ green "name" ++ " : \n\t" ++ "bla\x1B[31mh\x1B[39m" ++ " }")
+        , test "a nested field should be green then red" <|
+            \() ->
+                diff { person = { name = "blah" } } { person = { name = "bla" } }
+                    |> Expect.equal ("{ " ++ green "person" ++ " : \n\t" ++ "{ " ++ green "name" ++ " : \n\t\t" ++ "bla\x1B[31mh\x1B[39m" ++ " }" ++ " }")
+        ]
