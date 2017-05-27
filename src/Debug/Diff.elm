@@ -14,9 +14,11 @@ type Diff
     | CloseBracket
 
 
-type DiffingType a
+type DiffingType
     = StringDiff String String
     | RecordDiff Json.Value Json.Value
+    | NumberDiff Float Float
+    | NoDiff
 
 
 green : String -> String
@@ -45,6 +47,14 @@ stringDiff first second =
                 Same (String.fromList [ x ]) :: stringDiff xs ys
             else
                 Removed (String.fromList [ x ]) :: Added (String.fromList [ y ]) :: stringDiff xs ys
+
+
+numberDiff : Float -> Float -> List Diff
+numberDiff first second =
+    if first == second then
+        [ first |> toString |> Same ]
+    else
+        [ first |> toString |> Removed, second |> toString |> Added ]
 
 
 fieldDiff : Int -> ( String, Json.Value ) -> ( String, Json.Value ) -> List Diff
@@ -115,6 +125,12 @@ internalDiff depth thing other =
 
         RecordDiff first second ->
             OpenBracket :: recordDiff depth first second ++ [ CloseBracket ]
+
+        NumberDiff first second ->
+            numberDiff first second
+
+        NoDiff ->
+            []
 
 
 diff : a -> a -> String
